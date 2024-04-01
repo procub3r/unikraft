@@ -681,17 +681,56 @@ static void uk_efi_reset_attack_mitigation_enable(void)
 #endif
 }
 
+__u32 *gop_fb;
+uk_efi_uintn_t gop_fb_sz;
+__u32 gop_fb_width;
+__u32 gop_fb_height;
+__u32 gop_fb_pixels_per_scanline;
+
+static void uk_efi_setup_gop_fb(void)
+{
+	struct uk_efi_graphics_output_proto *gop;
+	struct uk_efi_graphics_output_mode_information *gop_info;
+	uk_efi_uintn_t gop_info_sz;
+	uk_efi_status_t status;
+
+	status = uk_efi_bs->locate_protocol(UK_EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID,
+					    NULL, (void**)&gop);
+	if (unlikely(status != UK_EFI_SUCCESS))
+		UK_EFI_CRASH("Failed to setup GOP\n");
+
+	gop_info = NULL;
+	status = gop->query_mode(gop, gop->mode->mode, &gop_info_sz, &gop_info);
+	if (unlikely(status != UK_EFI_SUCCESS))
+		UK_EFI_CRASH("Failed to query GOP mode\n");
+
+	gop_fb = (__u32*)gop->mode->fb_base;
+	gop_fb_sz = gop->mode->fb_sz;
+	gop_fb_width = gop->mode->info->horizontal_resolution;
+	gop_fb_height = gop->mode->info->vertical_resolution;
+	gop_fb_pixels_per_scanline = gop->mode->info->pixels_per_scanline;
+}
+
 void __uk_efi_api __noreturn uk_efi_main(uk_efi_hndl_t self_hndl,
 					 struct uk_efi_sys_tbl *sys_tbl)
 {
 	uk_efi_init_vars(self_hndl, sys_tbl);
 	uk_efi_cls();
 	uk_efi_reset_attack_mitigation_enable();
+	uk_efi_setup_gop_fb();
 
 	/* uk_efi_setup_bootinfo must be called last, since it will exit Boot
 	 * Service after obtaining EFI memory map
 	 */
 	uk_efi_setup_bootinfo();
+
+	/* Draw a small graphic before jumping to the kernel to demonstrate GOP */
+	for (int i = 0; i < 256; i++) {
+		for (int j = 0; j < 256; j++) {
+			__u8 b = i / 2 + j / 2;
+			gop_fb[i + j * gop_fb_pixels_per_scanline] = (b << 16) | (b << 8) | (b << 0);
+		}
+	}
 
 	/* Jump to arch specific post-EFI entry */
 	uk_efi_jmp_to_kern();
