@@ -719,11 +719,11 @@ void __uk_efi_api __noreturn uk_efi_main(uk_efi_hndl_t self_hndl,
 	 */
 	uk_efi_setup_bootinfo();
 
-	/* Draw a small graphic before jumping to the kernel to demonstrate GOP */
-	for (int i = 0; i < 256; i++) {
-		for (int j = 0; j < 256; j++) {
-			__u8 b = i / 2 + j / 2;
-			gop_fb[i + j * gop_fb_pixels_per_scanline] = (b << 16) | (b << 8) | (b << 0);
+	/* Draw a graphic before jumping to the kernel to demonstrate GOP */
+	for (__u32 i = 0; i < gop_fb_width; i++) {
+		for (__u32 j = 0; j < gop_fb_height; j++) {
+			__u32 b = i * 256 / gop_fb_width / 2 + j * 256 / gop_fb_height / 2;
+			gop_fb[i + j * gop_fb_pixels_per_scanline] = (b << 8) | (b << 0);
 		}
 	}
 
