@@ -28,6 +28,9 @@
 .*
 !.github/
 
+# editor settings files
+compile_commands.json
+
 # gnu global files
 GPATH
 GRTAGS
