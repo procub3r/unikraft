@@ -1,3 +1,4 @@
+#include <string.h>
 #include <uk/plat/common/fb.h>
 
 static __u32 *fb;
@@ -9,12 +10,18 @@ static __u32 fb_pixels_per_scanline;
 static __u32 cursor_x = 0, cursor_y = 0;
 static char font8x8_basic[128][8];
 
+#define SCALE_X 2
+#define SCALE_Y 4
 #define WHITE (255 << 16 | 255 << 8 | 255 << 0)
 
 static void put_pixel(__u32 x, __u32 y, __u32 color)
 {
-	if (x < fb_width && y < fb_height) {
-		fb[x + y * fb_pixels_per_scanline] = color;
+	if ((x < (fb_width / SCALE_X)) && (y < (fb_height / SCALE_Y))) {
+		for (__u32 i = 0; i < SCALE_Y; i++) {
+			for (__u32 j = 0; j < SCALE_X; j++) {
+				fb[(x * SCALE_X + j) + (y * SCALE_Y + i) * fb_pixels_per_scanline] = color;
+			}
+		}
 	}
 }
 
@@ -23,29 +30,48 @@ static void print(const char *str)
 	__u32 i = 0;
 	while (str[i] != '\0') {
 		__u8 c = str[i];
-		for (__u32 y = 0; y < 8; y++) {
-			for (__u32 x = 0; x < 8; x++) {
-				if (font8x8_basic[c][y] >> x & 1) {
-					put_pixel(cursor_x + x, cursor_y + y, WHITE);
-				}
-			}
-		}
-
-		if (cursor_x + 8 < fb_width) {
-			cursor_x += 8;
-		} else if (cursor_y + 8 < fb_height) {
+		if (c == '\n') {
 			cursor_x = 0;
 			cursor_y += 8;
+		} else if (c == '\t') {
+			cursor_x += 8 * 2;
+		} else if (c == '\r') {
+			cursor_x = 0;
+		} else if (c == '\a') {
+			/* ignore */
 		} else {
-			/* scroll */
+
+			for (__u32 y = 0; y < 8; y++) {
+				for (__u32 x = 0; x < 8; x++) {
+					if (font8x8_basic[c][y] >> x & 1) {
+						put_pixel(cursor_x + x, cursor_y + y, WHITE);
+					}
+				}
+			}
+
+			if ((cursor_x + 16) * SCALE_X <= fb_width) {
+				cursor_x += 8;
+			} else if ((cursor_y + 8) * SCALE_Y < fb_height) {
+				cursor_x = 0;
+				cursor_y += 8;
+			} else {
+				/* scroll */
+			}
 		}
 
 		i++;
 	}
 
 	cursor_x = 0;
-	if (cursor_y + 8 < fb_height) cursor_y += 8;
-	else ; /* scroll(?) */
+	if ((cursor_y + 8) * SCALE_Y < fb_height) {
+		cursor_y += 8;
+	} else {
+		for (__u32 line = 0; line < fb_height; line += 8 * SCALE_Y) {
+			for (__u32 i = 0; i < 8 * SCALE_Y; i++) {
+				memcpy(&fb[(i + line) * fb_width], &fb[(i + line + 8 * SCALE_Y) * fb_width], fb_pixels_per_scanline * sizeof(__u32));
+			}
+		}
+	}
 }
 
 void fb_init(__u32 *framebuffer, __u64 size, __u32 width, __u32 height,
@@ -57,7 +83,31 @@ void fb_init(__u32 *framebuffer, __u64 size, __u32 width, __u32 height,
 	fb_height = height;
 	fb_pixels_per_scanline = pixels_per_scanline;
 
-	print("------------ Text rendering with UEFI GOP in Unikraft! ------------");
+	print("----- SOME OLD LOGS HERE ----");
+	print("----- ERASED BY SCROLL. -----");
+	print("");
+	print("o.   .o       _ _               __ _");
+	print("Oo   Oo  ___ (_) | __ __  __ _ ' _) :_");
+	print("oO   oO ' _ `| | |/ /  _)' _` | |_|  _)");
+	print("oOo oOO| | | | |   (| | | (_) |  _) :_");
+	print(" OoOoO ._, ._:_:_,\\_._,  .__,_:_, \\___)");
+	print("");
+	print("    -");
+	print("  c'o'o  .--.");
+	print("  (| |)_/");
+	print("");
+	print("--- NEW LOG 01 ---");
+	print("--- NEW LOG 02 ---");
+	print("--- NEW LOG 03 ---");
+	print("--- NEW LOG 04 ---");
+	print("--- NEW LOG 05 ---");
+	print("--- NEW LOG 06 ---");
+	print("--- NEW LOG 07 ---");
+	print("--- NEW LOG 08 ---");
+	print("--- NEW LOG 09 ---");
+	print("--- NEW LOG 10 ---");
+	print("--- NEW LOG 11 ---");
+	print("--- NEW LOG 12 ---");
 }
 
 /**
